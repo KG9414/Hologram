@@ -5,6 +5,7 @@ import numpy as np
 import pygame
 import random
 import copy
+import math
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -91,9 +92,6 @@ class GestureDetector:
         self.last_pinch_distance = pinch_distance
         return None
 
-       
-
-
     def detect_swipe_gesture(self):
         if len(self.last_hand_landmarks) < 2:
             return None
@@ -120,6 +118,26 @@ class GestureDetector:
 
         return None
     
+    def detect_rock_on_gesture(self):
+            if len(self.last_hand_landmarks) < 2:
+                return None
+
+            # Extract the landmarks for the index and pinky fingers
+            index_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP]
+            pinky_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.PINKY_TIP]
+
+            # Calculate the vertical distance between the index and pinky finger tips
+            vertical_distance = abs(index_tip.y - pinky_tip.y)
+
+            # Define a threshold for the "rock on" sign detection
+            rock_on_threshold = 0.04
+
+            # Detect the "rock on" sign
+            if vertical_distance < rock_on_threshold:
+                return "Rock On"
+
+            return None
+
     def reset_gesture_state(self):
         self.last_hand_landmarks = []
 
@@ -131,12 +149,14 @@ def draw_model(model, position, rotation, scale):
     glRotatef(rotation[1], 0, 1, 0)  # Rotate around the Y-axis
     glRotatef(rotation[2], 0, 0, 1)  # Rotate around the Z-axis
     glScalef(scale[0], scale[1], scale[2])  # Apply scaling
+    
     glDisable(GL_LIGHTING)
+
     glEnable(GL_POINT_SMOOTH)
     glPointSize(1.0)
     glBegin(GL_POINTS)
     glColor4f(1.0, 0.5, 1.0, 1.0)  # Set color to white (R, G, B, Alpha)
-
+    
     for vertex_id in range(len(model.vertices)):
         glVertex3fv(model.vertices[vertex_id])
     glEnd()
@@ -296,6 +316,7 @@ def show_camera():
     cv2.destroyAllWindows()
 '''
 
+
 def show_camera():
     global global_rotation
     global_rotation = ""
@@ -342,7 +363,9 @@ def show_camera():
             novGesture = False
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
+        
+        
+        
         for i, viewport in enumerate(viewports):
             glViewport(*viewport)
             scale_factor = 0.7
@@ -379,6 +402,8 @@ def show_camera():
                     if len(gesture_detector.last_hand_landmarks) == gesture_detector.max_frames:
                         swipe_gesture = gesture_detector.detect_swipe_gesture()
                         zoom_gesture = gesture_detector.detect_zoom_gesture()
+                        rock_on_gesture = gesture_detector.detect_rock_on_gesture()
+
                         novGesture = True
                         global_zoom = zoom_gesture
 
@@ -391,6 +416,9 @@ def show_camera():
                             gesture_detector.reset_gesture_state()
                         elif zoom_gesture:
                             print("!!!Zoom Gesture:", zoom_gesture, "\n")
+                            gesture_detector.reset_gesture_state()
+                        elif rock_on_gesture:
+                            print("ROCK ON!")
                             gesture_detector.reset_gesture_state()
 
             cv2.imshow("Camera Feed", frame)
