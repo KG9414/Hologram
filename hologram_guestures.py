@@ -141,6 +141,25 @@ class GestureDetector:
     def reset_gesture_state(self):
         self.last_hand_landmarks = []
 
+def draw_cross():
+    # Set a thicker line width
+    glLineWidth(3.0)
+
+    # Disable lighting for the cross
+    glDisable(GL_LIGHTING)
+
+    # Draw a cross across the whole display
+    glBegin(GL_LINES)
+    glColor3f(1.0, 1.0, 1.0)
+    glVertex2f(-1.0, 0.0)
+    glVertex2f(1.0, 0.0)
+    glVertex2f(0.0, -1.0)
+    glVertex2f(0.0, 1.0)
+    glEnd()
+
+    # Re-enable lighting after drawing the cross
+    glEnable(GL_LIGHTING)
+
 # def draw_model(model, position, rotation, scale):
 def draw_model(model, position, rotation, scale):
     glPushMatrix()
@@ -335,6 +354,9 @@ def show_camera():
     global_zoom = ""
     previous_global_zoom = ""
 
+    start_time = time.time()
+    display_duration = 5.0  # 5 seconds duration for displaying the cross
+
     while cap.isOpened():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -363,16 +385,23 @@ def show_camera():
             novGesture = False
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        elapsed_time = time.time() - start_time
+
+        # Set the viewport for the entire display - zato da ni kriz cez enga mejhnega
+        if elapsed_time < display_duration:
+            glViewport(0, 0, display[0], display[1])
         
-        
-        
+            draw_cross()
+
         for i, viewport in enumerate(viewports):
             glViewport(*viewport)
-            scale_factor = 0.7
+            scale_factor = 0.7 
 
             # Adjust the translation to center the model
             draw_model(butterfly_instances[i], (0.0, 0.0, 0.0), butterfly_rotations[i], (zoom, zoom, zoom))
 
+        
         pygame.display.flip()
         pygame.time.wait(10)
 
