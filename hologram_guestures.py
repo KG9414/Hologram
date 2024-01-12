@@ -31,7 +31,6 @@ def mirror_model_x(model):
     mirrored_model.faces = model.faces
     return mirrored_model
 
-
 class GestureDetector:
     def __init__(self, max_frames=5, cooldown_duration=0.2):
         self.last_hand_landmarks = []
@@ -119,24 +118,38 @@ class GestureDetector:
         return None
     
     def detect_rock_on_gesture(self):
-            if len(self.last_hand_landmarks) < 2:
-                return None
-
-            # Extract the landmarks for the index and pinky fingers
-            index_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP]
-            pinky_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.PINKY_TIP]
-
-            # Calculate the vertical distance between the index and pinky finger tips
-            vertical_distance = abs(index_tip.y - pinky_tip.y)
-
-            # Define a threshold for the "rock on" sign detection
-            rock_on_threshold = 0.04
-
-            # Detect the "rock on" sign
-            if vertical_distance < rock_on_threshold:
-                return "Rock On"
-
+        if len(self.last_hand_landmarks) < 2:
             return None
+
+        # Extract the landmarks for the index, pinky, middle, ring, and thumb fingers
+        index_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP]
+        pinky_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.PINKY_TIP]
+        middle_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP]
+        ring_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.RING_FINGER_TIP]
+        thumb_tip = self.last_hand_landmarks[-1].landmark[mp.solutions.hands.HandLandmark.THUMB_TIP]
+
+        # Calculate the vertical distance between the index and pinky finger tips
+        vertical_distance = abs(index_tip.y - pinky_tip.y)
+
+        # Calculate the vertical distances for the other fingers
+        middle_distance = abs(index_tip.y - middle_tip.y)
+        ring_distance = abs(index_tip.y - ring_tip.y)
+        thumb_distance = abs(index_tip.y - thumb_tip.y)
+
+        # Define a threshold for the "rock on" sign detection
+        rock_on_threshold = 0.04
+
+        # Detect the "rock on" sign
+        if (
+            vertical_distance < rock_on_threshold and
+            middle_distance > rock_on_threshold and
+            ring_distance > rock_on_threshold and
+            thumb_distance > rock_on_threshold
+        ):
+            return "Rock On"
+
+        return None
+
 
     def reset_gesture_state(self):
         self.last_hand_landmarks = []
@@ -161,7 +174,7 @@ def draw_cross():
     glEnable(GL_LIGHTING)
 
 # def draw_model(model, position, rotation, scale):
-def draw_model(model, position, rotation, scale):
+def draw_model(model, position, rotation, scale, color):
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
     glRotatef(rotation[0], 1, 0, 0)  # Rotate around the X-axis
@@ -169,171 +182,21 @@ def draw_model(model, position, rotation, scale):
     glRotatef(rotation[2], 0, 0, 1)  # Rotate around the Z-axis
     glScalef(scale[0], scale[1], scale[2])  # Apply scaling
     
+    # Set the material properties for the model
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, color)
+    
     glDisable(GL_LIGHTING)
 
     glEnable(GL_POINT_SMOOTH)
     glPointSize(1.0)
     glBegin(GL_POINTS)
-    glColor4f(1.0, 0.5, 1.0, 1.0)  # Set color to white (R, G, B, Alpha)
-    
+    glColor4f(*color)
     for vertex_id in range(len(model.vertices)):
         glVertex3fv(model.vertices[vertex_id])
     glEnd()
 
     glEnable(GL_LIGHTING)
     glPopMatrix()
-
-
-'''
-def show_camera():
-    # Load your Blender model
-    # model_path = "/Users/karlagliha/Documents/Documents/Faks/Magisterij/IOI/SeminarII/FRI_Logo/Metulj.obj"
-
-    cap = cv2.VideoCapture(0)
-    prvic = True
-    gesture_detector = GestureDetector()
-
-    pygame.init()
-    gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
-    glTranslatef(0.0, 0.0, -5)
-    rotation_angle = 0 
-    
-
-
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
-    glTranslatef(0.0, 0.0, -5)
-
-    global_rotation = ""
-    global_zoom = ""
-    zoom = 0.26
-    novGesture = False
-    previous_global_zoom = ""
-
-    while cap.isOpened():
-        # for event in pygame.event.get():
-        #     if event.type == pygame.QUIT:
-        #         pygame.quit()
-        #         quit()
-
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-
-        rotation_speed = 12  # Adjust the rotation speed as needed
-        
-        # Apply continuous rotation
-        # glRotatef(rotation_angle, 0, 1, 0)
-        
-
-        # print("global:",global_rotation)
-        # print("rotation_angle:",rotation_angle)
-
-
-        if global_rotation == "left":
-            rotation_angle -= rotation_speed
-            glRotatef(rotation_angle, 0, 1, 0)  # Continuous rotation to the left
-        elif global_rotation == "right":
-
-            rotation_angle += rotation_speed
-            glRotatef(rotation_angle, 0, 1, 0)  # Continuous rotation to the right
-
-
-
-
-        if global_zoom == "Zoom In" and (novGesture == True):
-            print(" + 20 ", zoom)
-            zoom +=0.1
-            novGesture = False
-        elif global_zoom == "Zoom Out" and (novGesture == True):
-            zoom -=0.1
-            print(" - 20 ", zoom)
-            novGesture = False
-        
-        # for light_id in range(GL_LIGHT0, GL_LIGHT2 + 1):
-        #     random_color = random.choice(colors_palette)
-        #     glLightfv(light_id, GL_DIFFUSE, random_color)
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-
-        for i, viewport in enumerate(viewports):
-            glViewport(*viewport)
-            scale_factor = 0.7  # You can adjust this value as needed
-
-            draw_model(butterfly_instances[i], butterfly_positions[i], butterfly_rotations[i], (zoom, zoom, zoom))
-
-        pygame.display.flip()
-        pygame.time.wait(10)
-
-        with mp.solutions.hands.Hands() as hands:
-            glEnable(GL_LIGHTING)
-            glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (0.5, 0.5, 0.5, 1.0))
-
-
-            # glRotatef(3, 0, 1, 0)
-
-
-
-
-
-            ret, frame = cap.read()
-            if not ret:
-                print("Error: Could not read frame.")
-                break
-
-            frame = cv2.flip(frame, 1)
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            results = hands.process(rgb_frame)
-
-            if results.multi_hand_landmarks:
-                for landmarks in results.multi_hand_landmarks:
-                    
-                    mp.solutions.drawing_utils.draw_landmarks(frame, landmarks, mp.solutions.hands.HAND_CONNECTIONS)
-
-                    # If size is > 15, remove the oldest frame if not just add the new one each iteration (first iteration)
-                    if len(gesture_detector.last_hand_landmarks) == gesture_detector.max_frames:
-                        gesture_detector.last_hand_landmarks.pop(0) # Remove the oldest frame
-
-                    gesture_detector.last_hand_landmarks.append(landmarks)  # Add the newest frame
-
-                    
-                    # Check for recognision only if len = 15 (torej vsakih 15 frameov), plus when we detect we reset the whole array
-                    if len(gesture_detector.last_hand_landmarks) == gesture_detector.max_frames:
-                        # print("iz show camera ",len(gesture_detector.last_hand_landmarks))
-                        swipe_gesture = gesture_detector.detect_swipe_gesture()
-                        zoom_gesture = gesture_detector.detect_zoom_gesture()
-                        novGesture = True
-                        global_zoom = zoom_gesture
-
-                        if swipe_gesture:
-                            print("Swipe Gesture:", swipe_gesture,"\n")
-                            if swipe_gesture == "left":
-                                global_rotation = "left"
-                            else:
-                                global_rotation = "right"
-                            gesture_detector.reset_gesture_state()
-                        elif zoom_gesture:
-                            print("!!!Zoom Gesture:",  zoom_gesture , "\n")
- 
-                            gesture_detector.reset_gesture_state()
-                            
-                    
-
-
-            cv2.imshow("Camera Feed", frame)
-
-            # Reset gesture state if no hand is detected
-            if not results.multi_hand_landmarks:
-                gesture_detector.reset_gesture_state()
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    cap.release()
-    cv2.destroyAllWindows()
-'''
 
 
 def show_camera():
@@ -357,11 +220,28 @@ def show_camera():
     start_time = time.time()
     display_duration = 5.0  # 5 seconds duration for displaying the cross
 
+    # Initialize a variable to store the current model color
+    current_model_color = (1.0, 0.5, 1.0, 1.0)
+
+    # Initialize variables for color change gesture
+    color_change_duration = 5.0
+    color_change_start_time = None
+    color_change_color = (1.0, 1.0, 1.0, 1.0)  # Red color
+
     while cap.isOpened():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
+
+        # Detect rock on gesture
+        rock_on_gesture = gesture_detector.detect_rock_on_gesture()
+        if rock_on_gesture:
+            print("ROCK ON!")
+
+            # Perform color change action
+            color_change_start_time = time.time()
+            color_change_color = (random.random(), random.random(), random.random(), 1.0)
 
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
@@ -384,6 +264,22 @@ def show_camera():
             print(" - 20 ", zoom)
             novGesture = False
 
+        # Detect rock on gesture
+        rock_on_gesture = gesture_detector.detect_rock_on_gesture()
+        if rock_on_gesture:
+            print("ROCK ON!")
+
+            
+            current_model_color = (random.random(), random.random(), random.random(), 1.0)
+
+        # Check for color change duration
+        if color_change_start_time is not None:
+            elapsed_color_change_time = time.time() - color_change_start_time
+            if elapsed_color_change_time < color_change_duration:
+                current_model_color = color_change_color
+            else:
+                color_change_start_time = None
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         elapsed_time = time.time() - start_time
@@ -399,7 +295,7 @@ def show_camera():
             scale_factor = 0.7 
 
             # Adjust the translation to center the model
-            draw_model(butterfly_instances[i], (0.0, 0.0, 0.0), butterfly_rotations[i], (zoom, zoom, zoom))
+            draw_model(butterfly_instances[i], (0.0, 0.0, 0.0), butterfly_rotations[i], (zoom, zoom, zoom), current_model_color)
 
         
         pygame.display.flip()
@@ -448,6 +344,7 @@ def show_camera():
                             gesture_detector.reset_gesture_state()
                         elif rock_on_gesture:
                             print("ROCK ON!")
+                            glColor4f(1.0, 1.0, 1.0, 1.0)
                             gesture_detector.reset_gesture_state()
 
             cv2.imshow("Camera Feed", frame)
@@ -460,7 +357,6 @@ def show_camera():
 
     cap.release()
     cv2.destroyAllWindows()
-
 
 
 
